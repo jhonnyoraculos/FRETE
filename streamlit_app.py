@@ -19,6 +19,7 @@ SUMMARY_KEY = "resumo_frete"
 STATUS_TEXT_KEY = "status_texto"
 STATUS_LEVEL_KEY = "status_nivel"
 HAS_FUEL_DATA_KEY = "placa_tem_dados"
+DIAGNOSTIC_KEY = "diagnostico_placa"
 
 DEFAULT_STATE = {
     "placa_input": "",
@@ -64,7 +65,7 @@ def ensure_session_state() -> None:
 def reset_form_state() -> None:
     for key, value in DEFAULT_STATE.items():
         st.session_state[key] = value
-    for key in (RESULT_KEY, SUMMARY_KEY, STATUS_TEXT_KEY, STATUS_LEVEL_KEY, HAS_FUEL_DATA_KEY):
+    for key in (RESULT_KEY, SUMMARY_KEY, STATUS_TEXT_KEY, STATUS_LEVEL_KEY, HAS_FUEL_DATA_KEY, DIAGNOSTIC_KEY):
         st.session_state.pop(key, None)
 
 
@@ -113,6 +114,30 @@ def build_metric_card(label: str, value: str) -> str:
         "<div class='metric-card'>"
         f"<span>{label}</span>"
         f"<strong>{value}</strong>"
+        "</div>"
+    )
+
+
+def build_diagnostic_html(diagnostic: dict[str, float | int]) -> str:
+    return (
+        "<div class='summary-shell'>"
+        "<section class='summary-group'>"
+        "<h4>Custos brutos encontrados na base</h4>"
+        "<div class='summary-item'><span>Abastecimentos lancados</span>"
+        f"<strong>{int(diagnostic.get('combustivel_lancamentos', 0))}</strong></div>"
+        "<div class='summary-item'><span>Custo bruto de combustivel</span>"
+        f"<strong>{escape(format_currency(float(diagnostic.get('combustivel_custo_total', 0.0))))}</strong></div>"
+        "<div class='summary-item'><span>Km rodados validos preenchidos</span>"
+        f"<strong>{escape(format_decimal(float(diagnostic.get('combustivel_km_total', 0.0)), 'km'))}</strong></div>"
+        "<div class='summary-item'><span>Lancamentos de manutencao</span>"
+        f"<strong>{int(diagnostic.get('manutencao_lancamentos', 0))}</strong></div>"
+        "<div class='summary-item'><span>Custo bruto de manutencao</span>"
+        f"<strong>{escape(format_currency(float(diagnostic.get('manutencao_custo_total', 0.0))))}</strong></div>"
+        "<div class='summary-item'><span>Lancamentos de pedagio</span>"
+        f"<strong>{int(diagnostic.get('pedagio_lancamentos', 0))}</strong></div>"
+        "<div class='summary-item'><span>Custo bruto de pedagio</span>"
+        f"<strong>{escape(format_currency(float(diagnostic.get('pedagio_custo_total', 0.0))))}</strong></div>"
+        "</section>"
         "</div>"
     )
 
@@ -430,6 +455,7 @@ def render_sidebar(plates: list[str]) -> None:
             st.session_state.pop(RESULT_KEY, None)
             st.session_state.pop(SUMMARY_KEY, None)
             st.session_state.pop(HAS_FUEL_DATA_KEY, None)
+            st.session_state.pop(DIAGNOSTIC_KEY, None)
             st.session_state[STATUS_TEXT_KEY] = "Cache limpo. A base sera recarregada no proximo calculo."
             st.session_state[STATUS_LEVEL_KEY] = "success"
             st.rerun()
@@ -579,6 +605,7 @@ def main() -> None:
                 st.session_state.pop(RESULT_KEY, None)
                 st.session_state.pop(SUMMARY_KEY, None)
                 st.session_state.pop(HAS_FUEL_DATA_KEY, None)
+                st.session_state.pop(DIAGNOSTIC_KEY, None)
                 st.rerun()
 
             try:
@@ -592,15 +619,26 @@ def main() -> None:
                         incluir_pedagio=st.session_state["pedagio_input"],
                         incluir_reserva=st.session_state["reserva_input"],
                     )
+                diagnostic = frete_dados.get_diagnostico_placa(plate)
                 normalized_plate = normalize_plate(plate)
                 has_fuel_data = normalized_plate in data.get("custo_combustivel_por_km_por_placa", {})
 
                 st.session_state[RESULT_KEY] = result
                 st.session_state[SUMMARY_KEY] = build_summary_text(result)
                 st.session_state[HAS_FUEL_DATA_KEY] = has_fuel_data
+                st.session_state[DIAGNOSTIC_KEY] = diagnostic
                 if has_fuel_data:
                     st.session_state[STATUS_TEXT_KEY] = "Calculo de custo concluido."
                     st.session_state[STATUS_LEVEL_KEY] = "success"
+                elif (
+                    int(diagnostic.get("combustivel_lancamentos", 0)) > 0
+                    and float(diagnostic.get("combustivel_km_total", 0.0)) <= 0
+                ):
+                    st.session_state[STATUS_TEXT_KEY] = (
+                        "A placa tem abastecimentos lancados, mas o campo Km Rodados esta vazio ou zerado. "
+                        "Por isso combustivel, manutencao e pedagio por km ficaram zerados."
+                    )
+                    st.session_state[STATUS_LEVEL_KEY] = "warning"
                 else:
                     st.session_state[STATUS_TEXT_KEY] = (
                         f"Aviso: placa sem dados de combustivel em {frete_dados.ANO_REFERENCIA}."
@@ -613,6 +651,7 @@ def main() -> None:
                 st.session_state.pop(RESULT_KEY, None)
                 st.session_state.pop(SUMMARY_KEY, None)
                 st.session_state.pop(HAS_FUEL_DATA_KEY, None)
+                st.session_state.pop(DIAGNOSTIC_KEY, None)
                 st.rerun()
 
     with right:
@@ -628,6 +667,7 @@ def main() -> None:
 
         result = st.session_state.get(RESULT_KEY)
         summary = st.session_state.get(SUMMARY_KEY, "Aguardando calculo.")
+        diagnostic = st.session_state.get(DIAGNOSTIC_KEY)
 
         if result is None:
             st.metric("Total do custo", "R$ 0,00")
@@ -657,6 +697,13 @@ def main() -> None:
                 use_container_width=True,
             )
             st.markdown(build_summary_html(result), unsafe_allow_html=True)
+
+            if diagnostic and (
+                int(diagnostic.get("combustivel_lancamentos", 0)) > 0
+                and float(diagnostic.get("combustivel_km_total", 0.0)) <= 0
+            ):
+                st.markdown("### Diagnostico da base")
+                st.markdown(build_diagnostic_html(diagnostic), unsafe_allow_html=True)
 
             st.markdown("### Metricas")
             render_metrics(

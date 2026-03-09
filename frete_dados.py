@@ -409,6 +409,69 @@ def get_custo_colaborador_por_km() -> float:
     return float(custo_hora * horas_por_km)
 
 
+def get_diagnostico_placa(placa: str) -> Dict[str, float | int]:
+    """
+    Retorna um resumo bruto da placa nas planilhas para apoiar mensagens de diagnÃ³stico.
+    """
+    placa_normalizada = _normalizar_texto(placa)
+    placa_normalizada = "".join(ch for ch in placa_normalizada if ch.isalnum())
+
+    diagnostico: Dict[str, float | int] = {
+        "combustivel_lancamentos": 0,
+        "combustivel_custo_total": 0.0,
+        "combustivel_km_total": 0.0,
+        "combustivel_linhas_com_km": 0,
+        "manutencao_lancamentos": 0,
+        "manutencao_custo_total": 0.0,
+        "pedagio_lancamentos": 0,
+        "pedagio_custo_total": 0.0,
+    }
+
+    combustivel = carregar_planilha_combustivel().copy()
+    combustivel = _filtrar_por_ano(combustivel, ["Data", "MÃŠS"])
+    _validar_colunas(combustivel, [COL_PLACA_COMBUSTIVEL, COL_CUSTO])
+    combustivel["PLACA_NORMALIZADA"] = _normalizar_coluna_placa(combustivel, COL_PLACA_COMBUSTIVEL)
+    combustivel[COL_CUSTO] = pd.to_numeric(combustivel[COL_CUSTO], errors="coerce")
+    combustivel[COL_KM_RODADO] = pd.to_numeric(combustivel.get(COL_KM_RODADO), errors="coerce")
+    combustivel_placa = combustivel[combustivel["PLACA_NORMALIZADA"] == placa_normalizada].copy()
+    if not combustivel_placa.empty:
+        diagnostico["combustivel_lancamentos"] = int(len(combustivel_placa))
+        diagnostico["combustivel_custo_total"] = float(combustivel_placa[COL_CUSTO].fillna(0).sum())
+        km_validos = combustivel_placa[COL_KM_RODADO].dropna()
+        diagnostico["combustivel_linhas_com_km"] = int((km_validos > 0).sum())
+        diagnostico["combustivel_km_total"] = float(km_validos[km_validos > 0].sum()) if not km_validos.empty else 0.0
+
+    manutencao = carregar_planilha_manutencao().copy()
+    manutencao = _filtrar_por_ano(manutencao, ["MÃŠS"])
+    _validar_colunas(manutencao, [COL_MANUT_PLACA, COL_MANUT_CUSTO])
+    manutencao["PLACA_NORMALIZADA"] = _normalizar_coluna_placa(manutencao, COL_MANUT_PLACA)
+    manutencao[COL_MANUT_CUSTO] = pd.to_numeric(manutencao[COL_MANUT_CUSTO], errors="coerce")
+    manutencao_placa = manutencao[manutencao["PLACA_NORMALIZADA"] == placa_normalizada].copy()
+    if not manutencao_placa.empty:
+        diagnostico["manutencao_lancamentos"] = int(len(manutencao_placa))
+        diagnostico["manutencao_custo_total"] = float(manutencao_placa[COL_MANUT_CUSTO].fillna(0).sum())
+
+    pedagio = carregar_planilha_pedagio().copy()
+    pedagio = _filtrar_por_ano(pedagio, ["MÃŠS"])
+    if COL_PEDAGIO_PLACA not in pedagio.columns:
+        for alternativa in ("PLACAS", "placas", "Placas"):
+            if alternativa in pedagio.columns:
+                pedagio = pedagio.rename(columns={alternativa: COL_PEDAGIO_PLACA})
+                break
+    _validar_colunas(pedagio, [COL_PEDAGIO_PLACA, COL_PEDAGIO_TIPO, COL_PEDAGIO_CUSTO])
+    pedagio["PLACA_NORMALIZADA"] = _normalizar_coluna_placa(pedagio, COL_PEDAGIO_PLACA)
+    pedagio["TIPO_NORMALIZADO"] = pedagio[COL_PEDAGIO_TIPO].apply(_normalizar_texto)
+    pedagio[COL_PEDAGIO_CUSTO] = pd.to_numeric(pedagio[COL_PEDAGIO_CUSTO], errors="coerce")
+    pedagio_placa = pedagio[
+        (pedagio["PLACA_NORMALIZADA"] == placa_normalizada) & (pedagio["TIPO_NORMALIZADO"] == "PEDAGIO")
+    ].copy()
+    if not pedagio_placa.empty:
+        diagnostico["pedagio_lancamentos"] = int(len(pedagio_placa))
+        diagnostico["pedagio_custo_total"] = float(pedagio_placa[COL_PEDAGIO_CUSTO].fillna(0).sum())
+
+    return diagnostico
+
+
 def carregar_todos_os_dados() -> Dict[str, object]:
     """
     Carrega todas as planilhas e calcula os principais dicionários e métricas.
