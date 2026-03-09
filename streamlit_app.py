@@ -138,7 +138,7 @@ def build_summary_text(resultado: frete_calculo.ResultadoFrete) -> str:
             f"- Combustivel: {format_currency(resultado.custo_combustivel)}",
             f"- Manutencao: {format_currency(resultado.custo_manutencao)}",
             f"- Pedagio: {format_currency(resultado.custo_pedagio)}",
-            f"- Hospedagem: {format_currency(resultado.custo_reserva)}",
+            f"- Hospedagem (quarto duplo rateado): {format_currency(resultado.custo_reserva)}",
             f"- Mao de obra total: {format_currency(resultado.custo_mao_de_obra_total)}",
             f"- Custo total: {format_currency(resultado.custo_total)}",
             "",
@@ -146,6 +146,7 @@ def build_summary_text(resultado: frete_calculo.ResultadoFrete) -> str:
             "- Os tempos sao estimativas.",
             "- Descarga considerada: 1 hora por tonelada.",
             "- Viagem considerada: distancia dividida por 80 km/h.",
+            "- Hospedagem usa valores de quartos duplos da planilha, com meia diaria por colaborador.",
         ]
     )
 
@@ -176,7 +177,7 @@ def build_summary_html(resultado: frete_calculo.ResultadoFrete) -> str:
                 ("Combustivel", format_currency(resultado.custo_combustivel)),
                 ("Manutencao", format_currency(resultado.custo_manutencao)),
                 ("Pedagio", format_currency(resultado.custo_pedagio)),
-                ("Hospedagem", format_currency(resultado.custo_reserva)),
+                ("Hospedagem (quarto duplo rateado)", format_currency(resultado.custo_reserva)),
                 ("Mao de obra total", format_currency(resultado.custo_mao_de_obra_total)),
                 ("Custo total", format_currency(resultado.custo_total)),
             ],
@@ -203,6 +204,7 @@ def build_summary_html(resultado: frete_calculo.ResultadoFrete) -> str:
         "<li>Os tempos apresentados sao estimativas.</li>"
         "<li>A descarga considera 1 hora por tonelada.</li>"
         "<li>A viagem considera velocidade media de 80 km/h.</li>"
+        "<li>Hospedagem considera quartos duplos da planilha, com meia diaria por colaborador.</li>"
         "</ul>"
         "</section>"
     )
@@ -452,7 +454,12 @@ def render_status() -> None:
         st.info(text)
 
 
-def render_metrics(resultado: frete_calculo.ResultadoFrete, incluir_pedagio: bool, incluir_reserva: bool) -> None:
+def render_metrics(
+    resultado: frete_calculo.ResultadoFrete,
+    incluir_pedagio: bool,
+    incluir_reserva: bool,
+    dados_base: dict[str, object],
+) -> None:
     if resultado.distancia_km <= 0:
         st.info("Distancia invalida; nao foi possivel calcular metricas por km.")
         return
@@ -474,9 +481,14 @@ def render_metrics(resultado: frete_calculo.ResultadoFrete, incluir_pedagio: boo
         ("Dias estimados", frete_calculo.formatar_dias_horas(resultado.tempo_total_horas)),
     ]
 
+    if incluir_reserva and resultado.colaboradores > 0:
+        diaria_quarto_duplo = float(dados_base.get("custo_reserva_por_km", 0.0)) * 500.0
+        cards.append(("Diaria de hotel por colaborador", format_currency(diaria_quarto_duplo / 2)))
+        cards.append(("Hospedagem total por colaborador", format_currency(resultado.custo_reserva / resultado.colaboradores)))
+
     if resultado.dias_trabalho > 0 and resultado.colaboradores > 0:
         diaria = resultado.custo_mao_de_obra_total / (resultado.dias_trabalho * resultado.colaboradores)
-        cards.append(("Diaria por colaborador", format_currency(diaria)))
+        cards.append(("Diaria de mao de obra por colaborador", format_currency(diaria)))
 
     columns = st.columns(2, gap="medium")
     for index, (label, value) in enumerate(cards):
@@ -636,6 +648,7 @@ def main() -> None:
             )
         else:
             st.metric("Total do custo", format_currency(result.custo_total))
+            base_data = load_base_data()
             st.download_button(
                 "Baixar resumo em TXT",
                 data=summary,
@@ -650,6 +663,7 @@ def main() -> None:
                 result,
                 incluir_pedagio=st.session_state["pedagio_input"],
                 incluir_reserva=st.session_state["reserva_input"],
+                dados_base=base_data,
             )
 
 
