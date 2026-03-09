@@ -437,19 +437,6 @@ def render_sidebar(plates: list[str]) -> None:
         if LOGO_FILE.exists():
             st.image(str(LOGO_FILE), width=90)
 
-        st.subheader("Base local")
-        if DATA_DIR.exists():
-            files = sorted(DATA_DIR.glob("*.xlsx"))
-            st.success(f"{len(files)} planilhas encontradas na pasta data/.")
-            if files:
-                for file in files:
-                    st.caption(file.name)
-        else:
-            st.error("Pasta data/ nao encontrada.")
-
-        st.caption(f"Placas disponiveis: {len(plates)}")
-        st.caption(f"Ano de referencia: {frete_dados.ANO_REFERENCIA}")
-
         if st.button("Recarregar planilhas", use_container_width=True):
             clear_data_caches()
             st.session_state.pop(RESULT_KEY, None)
@@ -459,9 +446,6 @@ def render_sidebar(plates: list[str]) -> None:
             st.session_state[STATUS_TEXT_KEY] = "Cache limpo. A base sera recarregada no proximo calculo."
             st.session_state[STATUS_LEVEL_KEY] = "success"
             st.rerun()
-
-        st.markdown("---")
-        st.caption("Para Streamlit Cloud, a pasta data/ precisa estar no repositorio ou em outra fonte acessivel.")
 
 
 def render_status() -> None:
