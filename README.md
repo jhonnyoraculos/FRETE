@@ -1,20 +1,32 @@
 # FRETE
 
-Calculadora de frete JR em formato web, pronta para publicar no GitHub Pages.
+Calculadora de frete JR em Streamlit, usando as planilhas locais da pasta `data/`.
 
-## Publicacao no GitHub Pages
+## Rodar localmente
 
-1. Envie os arquivos para este repositorio.
-2. No GitHub, abra `Settings > Pages`.
-3. Em `Build and deployment`, selecione `Deploy from a branch`.
-4. Escolha a branch `main` e a pasta `/ (root)`.
-
-## Atualizacao da base
-
-Quando as planilhas locais mudarem, gere novamente o arquivo usado pelo site:
+1. Instale as dependencias:
 
 ```powershell
-python build_web_data.py
+pip install -r requirements.txt
 ```
 
-Depois disso, envie o `web-data.js` atualizado para o GitHub.
+2. Inicie o app:
+
+```powershell
+streamlit run streamlit_app.py
+```
+
+## Como os dados funcionam
+
+- O app le as planilhas Excel diretamente da pasta `data/`.
+- Se os arquivos mudarem enquanto o Streamlit estiver aberto, use o botao `Recarregar planilhas` na barra lateral.
+- O arquivo `placas_permitidas.txt` continua sendo usado para limitar as placas exibidas na interface.
+
+## Publicar no Streamlit Community Cloud
+
+Para funcionar em deploy remoto, as planilhas da pasta `data/` precisam estar acessiveis ao servidor:
+
+- opcao 1: incluir a pasta `data/` no repositorio
+- opcao 2: buscar os arquivos de outra fonte acessivel pelo app
+
+Do jeito atual, a pasta `data/` esta ignorada no Git para evitar publicar planilhas automaticamente.

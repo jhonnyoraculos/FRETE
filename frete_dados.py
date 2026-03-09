@@ -203,6 +203,15 @@ def carregar_planilha_pedagio() -> pd.DataFrame:
     return _ler_planilha(CAMINHO_PEDAGIO)
 
 
+def limpar_cache_planilhas() -> None:
+    """Limpa os caches das planilhas para forcar nova leitura do disco."""
+    carregar_planilha_combustivel.cache_clear()
+    carregar_planilha_manutencao.cache_clear()
+    carregar_planilha_reserva.cache_clear()
+    carregar_planilha_funcionarios.cache_clear()
+    carregar_planilha_pedagio.cache_clear()
+
+
 def _obter_km_total_por_placa() -> pd.Series:
     """Retorna a série com o total de KM rodado por placa."""
     df = carregar_planilha_combustivel().copy()

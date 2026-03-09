@@ -57,6 +57,13 @@ def get_dados() -> Dict[str, object]:
     return DADOS
 
 
+def limpar_cache_dados() -> None:
+    global DADOS
+    with _DADOS_LOCK:
+        DADOS = None
+    _get_frete_dados().limpar_cache_planilhas()
+
+
 def formatar_dias_horas(tempo_total_horas: float) -> str:
     """Converte horas em dias e horas usando 10h por dia."""
     if tempo_total_horas <= 0:
