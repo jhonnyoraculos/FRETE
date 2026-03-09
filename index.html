@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calculadora de Frete JR</title>
+    <meta
+      name="description"
+      content="Calculadora de frete JR em formato web, pronta para publicar no GitHub Pages."
+    >
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="web-data.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="brand-block panel panel-hero">
+          <div class="brand-mark">
+            <img src="logo-jr.png" alt="Logo JR">
+          </div>
+          <div class="brand-copy">
+            <p class="eyebrow">GitHub Pages Edition</p>
+            <h1>Calculadora de Frete JR</h1>
+            <p class="lede">
+              Mesma regra de calculo do app desktop, agora em um site estatico que roda sem servidor.
+            </p>
+          </div>
+        </div>
+        <div class="hero-pills">
+          <span class="pill" id="yearBadge">Base --</span>
+          <span class="pill" id="plateBadge">0 placas</span>
+          <span class="pill pill-live" id="dataBadge">Carregando base...</span>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="left-rail">
+          <form class="panel panel-form reveal" id="freteForm" novalidate>
+            <div class="panel-head">
+              <div>
+                <p class="section-tag">Entrada</p>
+                <h2>Parametros do frete</h2>
+              </div>
+              <p class="section-copy">Preencha os dados e calcule o custo total da viagem.</p>
+            </div>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Placa</span>
+                <select id="placaInput" required>
+                  <option value="">Selecione uma placa</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Distancia (km)</span>
+                <input id="distanciaInput" type="number" min="0" step="0.01" inputmode="decimal">
+              </label>
+
+              <label class="field">
+                <span>Peso (t)</span>
+                <input id="pesoInput" type="number" min="0" step="0.01" inputmode="decimal">
+              </label>
+
+              <label class="field">
+                <span>Colaboradores</span>
+                <input id="colaboradoresInput" type="number" min="1" step="1" inputmode="numeric">
+              </label>
+            </div>
+
+            <div class="toggle-grid">
+              <label class="toggle-card">
+                <input id="pedagioInput" type="checkbox">
+                <span>Incluir pedagio</span>
+              </label>
+              <label class="toggle-card">
+                <input id="reservaInput" type="checkbox" checked>
+                <span>Incluir hoteis</span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button class="button-primary" type="submit">Calcular frete</button>
+              <button class="button-secondary" id="limparBtn" type="button">Limpar</button>
+            </div>
+
+            <p class="status-line" id="statusMessage">Base pronta para uso.</p>
+          </form>
+
+          <aside class="panel panel-notes reveal">
+            <div class="panel-head">
+              <div>
+                <p class="section-tag">Operacao</p>
+                <h2>Observacoes do site</h2>
+              </div>
+            </div>
+            <ul class="notes-list">
+              <li>O site usa uma base estatica gerada a partir das planilhas locais.</li>
+              <li>Quando os arquivos Excel mudarem, rode <code>python build_web_data.py</code> antes de publicar.</li>
+              <li>GitHub Pages nao executa Python; por isso o calculo roda 100% no navegador.</li>
+            </ul>
+            <p class="notes-foot" id="generatedAt">Ultima geracao: --</p>
+          </aside>
+        </div>
+
+        <div class="right-rail">
+          <section class="panel panel-summary reveal">
+            <div class="panel-head">
+              <div>
+                <p class="section-tag">Saida</p>
+                <h2>Resumo do custo</h2>
+              </div>
+              <button class="button-secondary compact" id="copiarBtn" type="button">Copiar resumo</button>
+            </div>
+
+            <div class="total-card">
+              <span>Total do custo</span>
+              <strong id="totalOutput">R$ 0,00</strong>
+            </div>
+
+            <pre class="summary-console" id="summaryOutput">Aguardando calculo.</pre>
+          </section>
+
+          <section class="panel panel-metrics reveal">
+            <div class="panel-head">
+              <div>
+                <p class="section-tag">Metricas</p>
+                <h2>Detalhamento por km</h2>
+              </div>
+            </div>
+
+            <div class="metrics-grid" id="metricsOutput">
+              <article class="metric-card metric-empty">
+                <span>Preencha os dados para ver as metricas do frete.</span>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
