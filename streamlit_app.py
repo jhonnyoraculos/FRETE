@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 
 import streamlit as st
@@ -73,6 +74,14 @@ def format_currency(value: float) -> str:
     return f"R$ {inteiro},{decimal}"
 
 
+def format_decimal(value: float, suffix: str = "") -> str:
+    inteiro, decimal = f"{value:,.2f}".split(".")
+    inteiro = inteiro.replace(",", ".")
+    if suffix:
+        return f"{inteiro},{decimal} {suffix}"
+    return f"{inteiro},{decimal}"
+
+
 def normalize_plate(value: str) -> str:
     text = value.strip().upper()
     return "".join(ch for ch in text if ch.isalnum())
@@ -106,6 +115,99 @@ def build_metric_card(label: str, value: str) -> str:
         f"<strong>{value}</strong>"
         "</div>"
     )
+
+
+def build_summary_text(resultado: frete_calculo.ResultadoFrete) -> str:
+    return "\n".join(
+        [
+            "RESUMO DO FRETE",
+            "",
+            "Dados informados",
+            f"- Placa: {resultado.placa}",
+            f"- Distancia: {format_decimal(resultado.distancia_km, 'km')}",
+            f"- Peso: {format_decimal(resultado.peso_toneladas, 't')}",
+            f"- Colaboradores: {resultado.colaboradores}",
+            "",
+            "Estimativa operacional",
+            f"- Tempo de descarga: {format_decimal(resultado.tempo_descarga_horas, 'h')}",
+            f"- Tempo de viagem: {format_decimal(resultado.tempo_viagem_horas, 'h')}",
+            f"- Tempo total estimado: {format_decimal(resultado.tempo_total_horas, 'h')}",
+            f"- Dias estimados de trabalho: {frete_calculo.formatar_dias_horas(resultado.tempo_total_horas)}",
+            "",
+            "Composicao do custo",
+            f"- Combustivel: {format_currency(resultado.custo_combustivel)}",
+            f"- Manutencao: {format_currency(resultado.custo_manutencao)}",
+            f"- Pedagio: {format_currency(resultado.custo_pedagio)}",
+            f"- Hospedagem: {format_currency(resultado.custo_reserva)}",
+            f"- Mao de obra total: {format_currency(resultado.custo_mao_de_obra_total)}",
+            f"- Custo total: {format_currency(resultado.custo_total)}",
+            "",
+            "Observacoes",
+            "- Os tempos sao estimativas.",
+            "- Descarga considerada: 1 hora por tonelada.",
+            "- Viagem considerada: distancia dividida por 80 km/h.",
+        ]
+    )
+
+
+def build_summary_html(resultado: frete_calculo.ResultadoFrete) -> str:
+    sections = [
+        (
+            "Dados informados",
+            [
+                ("Placa", escape(resultado.placa)),
+                ("Distancia", format_decimal(resultado.distancia_km, "km")),
+                ("Peso", format_decimal(resultado.peso_toneladas, "t")),
+                ("Colaboradores", str(resultado.colaboradores)),
+            ],
+        ),
+        (
+            "Estimativa operacional",
+            [
+                ("Tempo de descarga", format_decimal(resultado.tempo_descarga_horas, "h")),
+                ("Tempo de viagem", format_decimal(resultado.tempo_viagem_horas, "h")),
+                ("Tempo total estimado", format_decimal(resultado.tempo_total_horas, "h")),
+                ("Dias de trabalho", frete_calculo.formatar_dias_horas(resultado.tempo_total_horas)),
+            ],
+        ),
+        (
+            "Composicao do custo",
+            [
+                ("Combustivel", format_currency(resultado.custo_combustivel)),
+                ("Manutencao", format_currency(resultado.custo_manutencao)),
+                ("Pedagio", format_currency(resultado.custo_pedagio)),
+                ("Hospedagem", format_currency(resultado.custo_reserva)),
+                ("Mao de obra total", format_currency(resultado.custo_mao_de_obra_total)),
+                ("Custo total", format_currency(resultado.custo_total)),
+            ],
+        ),
+    ]
+
+    blocks: list[str] = ["<div class='summary-shell'>"]
+    for title, items in sections:
+        blocks.append("<section class='summary-group'>")
+        blocks.append(f"<h4>{title}</h4>")
+        for label, value in items:
+            blocks.append(
+                "<div class='summary-item'>"
+                f"<span>{label}</span>"
+                f"<strong>{escape(value)}</strong>"
+                "</div>"
+            )
+        blocks.append("</section>")
+
+    blocks.append(
+        "<section class='summary-group summary-note'>"
+        "<h4>Observacoes</h4>"
+        "<ul>"
+        "<li>Os tempos apresentados sao estimativas.</li>"
+        "<li>A descarga considera 1 hora por tonelada.</li>"
+        "<li>A viagem considera velocidade media de 80 km/h.</li>"
+        "</ul>"
+        "</section>"
+    )
+    blocks.append("</div>")
+    return "".join(blocks)
 
 
 def inject_styles() -> None:
@@ -211,19 +313,48 @@ def inject_styles() -> None:
             color: #5c6b72;
         }
         .summary-shell {
+            display: grid;
+            gap: 0.9rem;
+        }
+        .summary-group {
             padding: 1rem 1.1rem;
             border-radius: 22px;
             border: 1px solid rgba(20, 32, 37, 0.08);
             background: #152126;
             color: #f4eee5;
-            min-height: 330px;
+            box-shadow: 0 18px 42px rgba(19, 30, 34, 0.22);
         }
-        .summary-shell pre {
-            white-space: pre-wrap;
-            font-size: 0.94rem;
-            line-height: 1.65;
-            margin: 0;
+        .summary-group h4 {
+            margin: 0 0 0.8rem 0;
+            color: #f6c08b;
+            font-size: 0.92rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.52rem 0;
+            border-top: 1px solid rgba(244, 238, 229, 0.08);
+        }
+        .summary-item:first-of-type {
+            border-top: 0;
+            padding-top: 0;
+        }
+        .summary-item span {
+            color: #a9bcc1;
+        }
+        .summary-item strong {
             color: #f4eee5;
+            text-align: right;
+            font-weight: 700;
+        }
+        .summary-note ul {
+            margin: 0;
+            padding-left: 1rem;
+            color: #d8e2e4;
+            line-height: 1.6;
         }
         .metric-card {
             padding: 1rem;
@@ -453,7 +584,7 @@ def main() -> None:
                 has_fuel_data = normalized_plate in data.get("custo_combustivel_por_km_por_placa", {})
 
                 st.session_state[RESULT_KEY] = result
-                st.session_state[SUMMARY_KEY] = frete_calculo.formatar_resultado(result)
+                st.session_state[SUMMARY_KEY] = build_summary_text(result)
                 st.session_state[HAS_FUEL_DATA_KEY] = has_fuel_data
                 if has_fuel_data:
                     st.session_state[STATUS_TEXT_KEY] = "Calculo de custo concluido."
@@ -489,7 +620,20 @@ def main() -> None:
         if result is None:
             st.metric("Total do custo", "R$ 0,00")
             st.info("A calculadora vai carregar as planilhas da pasta data/ no primeiro calculo.")
-            st.markdown("<div class='summary-shell'><pre>Aguardando calculo.</pre></div>", unsafe_allow_html=True)
+            st.markdown(
+                """
+                <div class='summary-shell'>
+                    <section class='summary-group'>
+                        <h4>Resumo</h4>
+                        <div class='summary-item'>
+                            <span>Status</span>
+                            <strong>Aguardando calculo</strong>
+                        </div>
+                    </section>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
             st.metric("Total do custo", format_currency(result.custo_total))
             st.download_button(
@@ -499,7 +643,7 @@ def main() -> None:
                 mime="text/plain",
                 use_container_width=True,
             )
-            st.markdown(f"<div class='summary-shell'><pre>{summary}</pre></div>", unsafe_allow_html=True)
+            st.markdown(build_summary_html(result), unsafe_allow_html=True)
 
             st.markdown("### Metricas")
             render_metrics(
