@@ -26,7 +26,5 @@ streamlit run streamlit_app.py
 
 Para funcionar em deploy remoto, as planilhas da pasta `data/` precisam estar acessiveis ao servidor:
 
-- opcao 1: incluir a pasta `data/` no repositorio
-- opcao 2: buscar os arquivos de outra fonte acessivel pelo app
-
-Do jeito atual, a pasta `data/` esta ignorada no Git para evitar publicar planilhas automaticamente.
+- a pasta `data/` ja esta versionada neste repositorio
+- quando as planilhas forem atualizadas localmente, envie os novos arquivos com `git add data/` e `git push`

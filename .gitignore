@@ -1,5 +1,4 @@
 __pycache__/
 *.pyc
-data/
 WhatsApp Image *.jpeg
 .streamlit/secrets.toml
